@@ -5,6 +5,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <ncurses.h>
+#include <math.h>
 
 typedef struct gameState {
 	int** grid;
@@ -16,6 +17,8 @@ int main();
 void draw(Game* game);
 void drawGrid(int** grid);
 int calcNumDigits(int num);
+void initColors();
+int calcColor(int num);
 int doTick(Game* game, int direction);
 void newBlock(int** grid, int* blockctptr);
 void shift(int** grid, int* blockctptr, long* score, int direction);

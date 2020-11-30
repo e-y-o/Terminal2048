@@ -5,6 +5,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <ncurses.h>
+#include <math.h>
 #include "2048.h"
 
 #define GRID_SIZE 4
@@ -14,7 +15,13 @@
 #define RIGHT 3
 #define LEFT 4
 
-struct termios oldt, newt; // terminal settings
+const int values[] = {
+	0, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048
+};
+const int colors[] = {
+	COLOR_WHITE, COLOR_WHITE, COLOR_CYAN, COLOR_CYAN, COLOR_MAGENTA, COLOR_MAGENTA, COLOR_BLUE, COLOR_YELLOW, COLOR_GREEN, COLOR_RED, COLOR_RED 
+};
+double LOGTENTWO = 0.301030;
 
 /*
  * Main function containing game loop.
@@ -23,6 +30,8 @@ struct termios oldt, newt; // terminal settings
 int main() {
 	initscr();
 	noecho();
+	start_color();
+	initColors();
 
 	/*
  	 * Initialize game and necessary variables.
@@ -100,7 +109,9 @@ void draw(Game* game) {
  */
 void drawGrid(int** grid) {
 	int val;
+	int valColorIdx;
 	int whitespaceInCol[GRID_SIZE];
+	int numDigits;
 	for(int z = 0; z < GRID_SIZE; ++z) {
 		whitespaceInCol[z] = 1;
 	}
@@ -113,16 +124,20 @@ void drawGrid(int** grid) {
 				}
 			}
 			val = grid[i][j];
-			int numDigits = calcNumDigits(grid[i][j]);
-
+			valColorIdx = calcColor(val);
+			numDigits = calcNumDigits(val);
+			attron(COLOR_PAIR(valColorIdx));
 			printw("[ ");
+			attroff(COLOR_PAIR(valColorIdx));
 			for(int k = 0; k < (whitespaceInCol[j] - numDigits); ++k) {
 					printw(" ");
 				}
 			if(val != 0) {
-				printw("%i", grid[i][j]);
+				printw("%i", val);
 			}
+			attron(COLOR_PAIR(valColorIdx));
 			printw(" ]");
+			attroff(COLOR_PAIR(valColorIdx));
 		}
 		printw("\n");
 		refresh();
@@ -151,17 +166,60 @@ int calcNumDigits(int num) {
 }
 
 /*
+ * Initialize terminal colors to fit the scheme.
+ */
+void initColors() {
+	init_color(COLOR_WHITE, 894, 890, 875);
+	init_color(COLOR_BLACK, 156, 164, 210);
+	init_color(COLOR_RED, 925, 757, 175);
+	init_color(COLOR_GREEN, 925, 808, 449);
+	init_color(COLOR_YELLOW, 960, 367, 230);
+	init_color(COLOR_BLUE, 960, 484, 375);
+	init_color(COLOR_MAGENTA, 945, 691, 472);
+	init_color(COLOR_CYAN, 925, 875, 781);
+
+	init_pair(1, COLOR_WHITE, COLOR_BLACK);
+	init_pair(2, COLOR_CYAN, COLOR_BLACK);
+	init_pair(3, COLOR_MAGENTA, COLOR_BLACK);
+	init_pair(4, COLOR_MAGENTA, COLOR_BLACK);
+	init_pair(5, COLOR_BLUE, COLOR_BLACK);
+	init_pair(6, COLOR_YELLOW, COLOR_BLACK);
+	init_pair(7, COLOR_GREEN, COLOR_BLACK);
+	init_pair(8, COLOR_GREEN, COLOR_BLACK);
+	init_pair(9, COLOR_RED, COLOR_BLACK);
+	init_pair(10, COLOR_RED, COLOR_BLACK);
+	init_pair(11, COLOR_RED, COLOR_BLACK);
+}
+
+/*
+ * Calculate the color the number should have.
+ * @p num - an integer from values[]
+ * @r a number from 0-11
+ */
+int calcColor(int num) {
+	if(num == 0) {
+		return 1;
+	}
+	else if (num > 2048) {
+		return 11;
+	}
+	else {
+		return (int) (log10((double) num) / (LOGTENTWO));
+	}
+}
+
+/*
  * Do a game tick.
  * @p game - the game whose state is being updated
  * @p direction - direction parameter to be passed to shift()
  * @r a flag which tells the main function whether to quit
  */
 int doTick(Game* game, int direction) {
+	shift(game->grid, &(game->blockct), &(game->score), direction);
 	if(game->blockct >= 16) {
 		gameLoss(game);
 		return 0;
 	}
-	shift(game->grid, &(game->blockct), &(game->score), direction);
 	newBlock(game->grid, &(game->blockct));
 	draw(game);
 	//Sprintw("Game was ticked, %i\n", game->blockct);
